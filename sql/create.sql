@@ -12,11 +12,12 @@ CREATE TABLE `user` (
   `login` VARCHAR(20) NOT NULL,
   INDEX (`login`),
   PRIMARY KEY (`login`),
-  CHECK (`login` REGEXP "^[[:alnum:]_]{3,20}$")
+  `can_create` BOOL NOT NULL DEFAULT TRUE,
+  CHECK (`login` REGEXP "^[[:alnum:]_]{3,4}$")
 ) ENGINE = InnoDB;;
 
 CREATE PROCEDURE `select_all_users` ()
-  SELECT (`login`) FROM `user`;;
+  SELECT `login` FROM `user`;;
 
 CREATE PROCEDURE `insert_new_user` (IN `login1` VARCHAR(20))
   IF
@@ -38,8 +39,8 @@ CREATE TABLE `meeting` (
   PRIMARY KEY (`id_meeting`),
   `name` VARCHAR(20) NOT NULL,
   INDEX (`name`),
-  `description` TEXT,
-  `visible` BOOL NOT NULL,
+  `description` TEXT NULL,
+  `visible` BOOL NOT NULL DEFAULT TRUE,
   `owner` VARCHAR(20) NOT NULL,
   FOREIGN KEY (`owner`) REFERENCES `user`(`login`)
 ) ENGINE = InnoDB;;
@@ -48,9 +49,30 @@ CREATE FUNCTION `in_meeting` (`login1` VARCHAR(20), `id_meeting1` INT UNSIGNED)
   RETURNS BOOL
   RETURN EXISTS (SELECT * FROM `meeting` WHERE `login`=`login1` AND `id_meeting`=`id_meeting1`);;
 
-CREATE PROCEDURE `veiw_meetings` (IN `login1` VARCHAR(20))
-  SELECT (`name`, `description`) FROM `meetings`
+CREATE PROCEDURE `view_meetings` (IN `login1` VARCHAR(20))
+  SELECT `name`, `description` FROM `meeting`
     WHERE (`visible` OR `in_meeting`(`login1`, `id_meeting`));;
+
+CREATE FUNCTION `can_create_meeting`(`login1` VARCHAR(20))
+  RETURNS BOOL
+  RETURN (SELECT `can_create` FROM `user` WHERE `login`=`login1`);;
+
+CREATE PROCEDURE `insert_new_meeting` (IN `login1` VARCHAR(20), `name1` VARCHAR(20))
+  IF
+    `can_create_meeting`(`login1`)
+  THEN
+    IF
+      (`name1` REGEXP "^[[:alnum:]_]{3,20}$")
+    THEN
+      INSERT INTO `meeting` (`name`, `owner`) VALUES (`name1`, `login1`);
+    ELSE
+      SIGNAL SQLSTATE "45000"
+        SET MESSAGE_TEXT = "Wrong name word";
+    END IF;
+  ELSE
+    SIGNAL SQLSTATE "45000"
+      SET MESSAGE_TEXT = "You have not permissions to create new meetings";
+  END IF;;
 
 CREATE TABLE `participant` (
   `login` VARCHAR(20) NOT NULL,

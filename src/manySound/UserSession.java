@@ -8,6 +8,14 @@ import java.util.Vector;
 
 public class UserSession {
 
+    public static final Vector<String> meetingRowNames;
+
+    static {
+        meetingRowNames = new Vector<>();
+        meetingRowNames.add("Name");
+        meetingRowNames.add("Description");
+    }
+
     private String userName;
 
     private UserSession(String login) {

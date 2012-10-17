@@ -15,15 +15,18 @@ public abstract class UserShownException extends Exception {
 
     public void showMessage() {
         final JFrame messageFrame = new JFrame(getHeader());
-        JLabel messageLabel = new JLabel(getMessage());
-        messageFrame.getContentPane().setLayout(new GridLayout(2, 1));
-        JPanel messageLabelPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        messageLabelPanel.add(messageLabel);
-        messageFrame.getContentPane().add(new JScrollPane(messageLabelPanel));
+        JPanel messagePanel = new JPanel(new BorderLayout());
+        messageFrame.getContentPane().add(messagePanel);
+        JTextArea messageTextArea = new JTextArea(getMessage());
+        messageTextArea.setLineWrap(true);
+        messageTextArea.setWrapStyleWord(true);
+        messageTextArea.setEditable(false);
+        messageTextArea.setBackground(messageFrame.getBackground());
+        messagePanel.add(new JScrollPane(messageTextArea, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.CENTER);
         JPanel okButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         JButton okButton = new JButton("OK");
         okButtonPanel.add(okButton);
-        messageFrame.getContentPane().add(okButtonPanel);
+        messagePanel.add(okButtonPanel, BorderLayout.SOUTH);
         okButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {

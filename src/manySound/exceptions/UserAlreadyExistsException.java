@@ -1,20 +1,16 @@
 package manySound.exceptions;
 
-public class UserAlreadyExistsException extends UserShownException {
+public class UserAlreadyExistsException extends SomethingAlreadyExistsException {
 
-    String login;
+    final static String type = "User";
 
     public UserAlreadyExistsException(String login) {
-        this.login = login;
+        super(login);
     }
 
     @Override
-    public String getMessage() {
-        return "User '" + login + "' already exists!";
+    public String getType() {
+        return "User";
     }
 
-    @Override
-    public String getHeader() {
-        return "User already exists";
-    }
 }

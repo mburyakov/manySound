@@ -1,5 +1,6 @@
 package manySound;
 
+import manySound.exceptions.SomethingAlreadyExistsException;
 import manySound.exceptions.UnknownSQLException;
 import manySound.exceptions.UserAlreadyExistsException;
 import manySound.exceptions.UserShownException;
@@ -48,14 +49,14 @@ public class DatabaseChanger {
         Connection connection = null;
         try {
             connection = connector.getConnection(true);
-            PreparedStatement statement = connection.prepareStatement("CALL `view_meetings(?)`");
+            PreparedStatement statement = connection.prepareStatement("CALL `view_meetings`(?)");
             statement.setString(1, login);
             ResultSet resultSet = statement.executeQuery();
             Vector<Vector<String>> meetingVector = new Vector<>();
             while (resultSet.next()) {
                 Vector<String> meeting = new Vector<>();
-                meeting.set(0,resultSet.getString("name"));
-                meeting.set(0,resultSet.getString("description"));
+                meeting.add(resultSet.getString("name"));
+                meeting.add(resultSet.getString("description"));
                 meetingVector.add(meeting);
             }
             connection.close();
@@ -90,6 +91,30 @@ public class DatabaseChanger {
             }
             if (e.getErrorCode()==1062) {
                 throw new UserAlreadyExistsException(login);
+            }
+            throw new UnknownSQLException(e);
+        }
+    }
+
+    public void addMeeting(String currentUserName, String name) throws UserShownException {
+        Connection connection = null;
+        try {
+            connection = connector.getConnection(true);
+            PreparedStatement addStatement = connection.prepareStatement("CALL `insert_new_meeting`(?,?)");
+            addStatement.setString(1, currentUserName);
+            addStatement.setString(2, name);
+            addStatement.execute();
+            connection.close();
+            sleep();
+        } catch (SQLException e) {
+            try {
+                if (connection != null) {
+                    connection.close();
+                }
+            } catch (SQLException ignored) {
+            }
+            if (e.getErrorCode()==1062) {
+                throw new SomethingAlreadyExistsException(name);
             }
             throw new UnknownSQLException(e);
         }

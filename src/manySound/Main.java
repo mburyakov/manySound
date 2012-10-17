@@ -1,16 +1,14 @@
 package manySound;
 
-import com.sun.org.apache.bcel.internal.generic.ARRAYLENGTH;
 import manySound.exceptions.CannotLoginException;
+import manySound.exceptions.NotifyException;
 import manySound.exceptions.UnknownSQLException;
 import manySound.exceptions.UserShownException;
 
 import javax.swing.*;
+import javax.swing.event.MouseInputAdapter;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,7 +34,7 @@ public class Main {
                 try {
                     final ArrayList<String> al = DatabaseChanger.getInstance().fetchAllUsers();
                     SwingUtilities.invokeLater(new Runnable() {
-                            @Override
+                        @Override
                         public void run() {
                             userListModel.update(al);
                         }
@@ -172,6 +170,11 @@ public class Main {
                                     performLoginButton.setEnabled(false);
                                     logoutButton.setEnabled(true);
                                     currentLoggedLabel[0].setText(MessageGenerator.loggedOn(currentSession[0]));
+                                    try {
+                                        createSelectMeetingFrame(currentSession[0].getMeetingsList(), currentSession[0]);
+                                    } catch (UnknownSQLException e) {
+                                        e.showMessage();
+                                    }
                                 }
                             }
 
@@ -206,21 +209,76 @@ public class Main {
 
 
         mainFrame.setSize(new Dimension(500, 300));
-        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mainFrame.setLocation(0, 0);
+        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         mainFrame.setVisible(true);
         loginTextField.requestFocusInWindow();
         return mainFrame;
     }
 
-    /*public static JFrame createSelectMeetingFrame(Vector<Vector<String>> ) {
-        JFrame selectMeetingFrame = new JFrame("Select meeting");
+    public static JFrame createSelectMeetingFrame(Vector<Vector<String>> meetingCollection, final UserSession userSession) {
+        final JFrame selectMeetingFrame = new JFrame("Select meeting");
         JPanel selectMeetingPanel = new JPanel(new BorderLayout());
         selectMeetingFrame.getContentPane().add(selectMeetingPanel);
-        JTable meetingTable = new JTable(meetingCollection, Meeting.colNames);
-        selectMeetingPanel.add(meetingTable, );
+        final JTable meetingTable = new JTable(meetingCollection, UserSession.meetingRowNames);
+        meetingTable.addMouseListener(new MouseInputAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                Point p = e.getPoint();
+                int row = meetingTable.rowAtPoint(p);
+                int col = meetingTable.columnAtPoint(p);
+                new NotifyException("Selected " + meetingTable.getValueAt(row, 0)).showMessage();
+            }
+        });
+        selectMeetingPanel.add(meetingTable, BorderLayout.CENTER);
 
+        JPanel addMeetingPanel = new JPanel(new BorderLayout());
+        final JTextField meetingNameField = new JTextField();
+        addMeetingPanel.add(meetingNameField, BorderLayout.CENTER);
+        final JButton addMeetingButton = new JButton("Add");
+        final Runnable addMetingWorker = new Runnable() {
+            @Override
+            public void run() {
+                final String userName = userSession.getUserName();
+                final String meetingName = meetingNameField.getText();
+                selectMeetingFrame.setVisible(false);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            DatabaseChanger.getInstance().addMeeting(userName, meetingName);
+                        } catch (UserShownException e) {
+                            e.showMessage();
+                        } finally {
+                            SwingUtilities.invokeLater(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        createSelectMeetingFrame(userSession.getMeetingsList(), userSession);
+                                    } catch (UnknownSQLException e) {
+                                        e.showMessage();
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }).start();
+            }
+        };
+        addMeetingButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addMetingWorker.run();
+            }
+        });
+        addMeetingPanel.add(addMeetingButton, BorderLayout.EAST);
+        selectMeetingPanel.add(addMeetingPanel, BorderLayout.SOUTH);
+
+        selectMeetingFrame.setSize(500, 300);
+        selectMeetingFrame.setLocation(10, 10);
+        selectMeetingFrame.setVisible(true);
         return selectMeetingFrame;
-    }*/
+    }
 
     public static void main(String[] args) {
         try {
