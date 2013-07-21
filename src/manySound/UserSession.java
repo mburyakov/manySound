@@ -12,6 +12,7 @@ public class UserSession {
 
     static {
         meetingRowNames = new Vector<>();
+        meetingRowNames.add("id");
         meetingRowNames.add("Name");
         meetingRowNames.add("Description");
     }
@@ -22,9 +23,9 @@ public class UserSession {
         userName = login;
     }
 
-    public static UserSession tryLogin(String login) {
+    public static UserSession tryLogin(String login, String password) {
         try {
-            if (DatabaseChanger.getInstance().tryLogin(login)) {
+            if (DatabaseChanger.getInstance().tryLogin(login, password)) {
                 return new UserSession(login);
             } else {
                 return null;

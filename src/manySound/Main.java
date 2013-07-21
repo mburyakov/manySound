@@ -1,7 +1,6 @@
 package manySound;
 
 import manySound.exceptions.CannotLoginException;
-import manySound.exceptions.NotifyException;
 import manySound.exceptions.UnknownSQLException;
 import manySound.exceptions.UserShownException;
 
@@ -11,16 +10,56 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Vector;
 
 public class Main {
 
+    static JFrame mainFrame;
+
+    static JPanel containerPanel;
+
+    static JPanel getContainerPanel() {
+        if (mainFrame==null) {
+            getMainFrame();
+        }
+        return containerPanel;
+    }
+
+    static ArrayList<JPanel> panelList = new ArrayList<>();
+
+    static JFrame getMainFrame() {
+        if (mainFrame == null) {
+            mainFrame = createMainFrame();
+            return mainFrame;
+        } else {
+            return mainFrame;
+        }
+    }
+
     static JFrame createMainFrame() {
-        DatabaseChanger.getInstance().debug = true;
         JFrame mainFrame = new JFrame("Database");
+        mainFrame.setSize(new Dimension(500, 500));
+        mainFrame.setLocation(0, 0);
+        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        JPanel rootPanel = new JPanel(new BorderLayout());
+        JPanel northPanel = new JPanel();
+        mainFrame.getContentPane().add(rootPanel);
+        rootPanel.add(northPanel, BorderLayout.NORTH);
+        containerPanel = new JPanel();
+        rootPanel.add(containerPanel, BorderLayout.CENTER);
+        JButton backButton = new JButton("<= Back");
+        backButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                popFromFrame();
+            }
+        });
+        northPanel.add(backButton);
+        return mainFrame;
+    }
+
+    static JPanel createMainPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainFrame.getContentPane().add(mainPanel);
         JTabbedPane tabs = new JTabbedPane();
         mainPanel.add(tabs);
 
@@ -39,8 +78,6 @@ public class Main {
                             userListModel.update(al);
                         }
                     });
-                } catch (IOException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-                    DatabaseChanger.die(e);
                 } catch (UnknownSQLException e) {
                     e.showMessage();
                 }
@@ -137,29 +174,41 @@ public class Main {
 
         final UserSession[] currentSession = {null};
 
-        JPanel loginPanel = new JPanel(new GridLayout(2, 1));
+        final JPanel logPanel = new JPanel(new CardLayout());
+        JPanel loginPanel = new JPanel(new GridLayout(3, 1));
+        final JTextField loginField = new JTextField();
+        final JTextField passwordField = new JPasswordField();
+        final JButton performLoginButton = new JButton("Login");
+        loginPanel.add(loginField);
+        loginPanel.add(passwordField);
+        loginPanel.add(performLoginButton);
+        logPanel.add(loginPanel, "1");
+
+        JPanel logoutPanel = new JPanel(new FlowLayout());
         final JLabel[] currentLoggedLabel = {new JLabel(MessageGenerator.loggedOn(null))};
         final JButton logoutButton = new JButton("Logout");
-        logoutButton.setEnabled(false);
-        JPanel logoutPanel = new JPanel(new FlowLayout());
         logoutPanel.add(currentLoggedLabel[0]);
         logoutPanel.add(logoutButton);
-        loginPanel.add(logoutPanel);
-        JPanel performLoginPanel = new JPanel(new FlowLayout());
-        loginPanel.add(performLoginPanel);
-        final ComboBoxModel<String> selectLoginComboBoxModel = new SelectLoginComboBoxModel(userListModel);
-        final JComboBox<String> selectLoginComboBox = new JComboBox<>(selectLoginComboBoxModel);
-        performLoginPanel.add(selectLoginComboBox);
-        final JButton performLoginButton = new JButton("Login");
-        performLoginPanel.add(performLoginButton);
+        logPanel.add(logoutPanel, "2");
+
+
+        //loginPanel.add(logoutPanel);
+        //JPanel performLoginPanel = new JPanel(new FlowLayout());
+        //loginPanel.add(performLoginPanel);
+        //final ComboBoxModel<String> selectLoginComboBoxModel = new SelectLoginComboBoxModel(userListModel);
+        //final JComboBox<String> selectLoginComboBox = new JComboBox<>(selectLoginComboBoxModel);
+        //performLoginPanel.add(selectLoginComboBox);
+
+        //performLoginPanel.add(performLoginButton);
         final Runnable performLoginWorker = new Runnable() {
             @Override
             public void run() {
-                final String loginUserName = selectLoginComboBox.getSelectedItem().toString();
+                final String loginUserName = loginField.getText();
+                final String loginPassword = passwordField.getText();
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        final UserSession newSession = UserSession.tryLogin(loginUserName);
+                        final UserSession newSession = UserSession.tryLogin(loginUserName, loginPassword);
                         SwingUtilities.invokeLater(new Runnable() {
                             @Override
                             public void run() {
@@ -167,11 +216,10 @@ public class Main {
                                     new CannotLoginException(loginUserName).showMessage();
                                 } else {
                                     currentSession[0] = newSession;
-                                    performLoginButton.setEnabled(false);
-                                    logoutButton.setEnabled(true);
                                     currentLoggedLabel[0].setText(MessageGenerator.loggedOn(currentSession[0]));
+                                    ((CardLayout) logPanel.getLayout()).show(logPanel, "2");
                                     try {
-                                        createSelectMeetingFrame(currentSession[0].getMeetingsList(), currentSession[0]);
+                                        addToFrame(createSelectMeetingPanel(currentSession[0].getMeetingsList(), currentSession[0]));
                                     } catch (UnknownSQLException e) {
                                         e.showMessage();
                                     }
@@ -187,15 +235,30 @@ public class Main {
             @Override
             public void run() {
                 currentSession[0] = null;
-                performLoginButton.setEnabled(true);
-                logoutButton.setEnabled(false);
                 currentLoggedLabel[0].setText(MessageGenerator.loggedOn(currentSession[0]));
+                ((CardLayout) logPanel.getLayout()).show(logPanel, "1");
             }
         };
         performLoginButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 performLoginWorker.run();
+            }
+        });
+        loginField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                performLoginWorker.run();
+                loginField.setText("");
+                passwordField.setText("");
+            }
+        });
+        passwordField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                performLoginWorker.run();
+                loginField.setText("");
+                passwordField.setText("");
             }
         });
         logoutButton.addActionListener(new ActionListener() {
@@ -205,29 +268,30 @@ public class Main {
             }
         });
 
-        tabs.addTab("Login", loginPanel);
+        tabs.addTab("Login", logPanel);
 
-
-        mainFrame.setSize(new Dimension(500, 300));
-        mainFrame.setLocation(0, 0);
-        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        mainFrame.setVisible(true);
         loginTextField.requestFocusInWindow();
-        return mainFrame;
+        return mainPanel;
     }
 
-    public static JFrame createSelectMeetingFrame(Vector<Vector<String>> meetingCollection, final UserSession userSession) {
-        final JFrame selectMeetingFrame = new JFrame("Select meeting");
+    public static JPanel createSelectMeetingPanel(Vector<Vector<String>> meetingCollection, final UserSession userSession) {
         JPanel selectMeetingPanel = new JPanel(new BorderLayout());
-        selectMeetingFrame.getContentPane().add(selectMeetingPanel);
         final JTable meetingTable = new JTable(meetingCollection, UserSession.meetingRowNames);
+        //meetingTable.getV
+        meetingTable.setCellEditor(null);
         meetingTable.addMouseListener(new MouseInputAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 Point p = e.getPoint();
                 int row = meetingTable.rowAtPoint(p);
                 int col = meetingTable.columnAtPoint(p);
-                new NotifyException("Selected " + meetingTable.getValueAt(row, 0)).showMessage();
+                int id = new Integer(meetingTable.getValueAt(row, 0).toString());
+                try {
+                    Meeting selected = new Meeting(id, userSession);
+                    addToFrame(createMeetingPanel(selected));
+                } catch (UserShownException e1) {
+                    e1.showMessage();
+                }
             }
         });
         selectMeetingPanel.add(meetingTable, BorderLayout.CENTER);
@@ -241,7 +305,6 @@ public class Main {
             public void run() {
                 final String userName = userSession.getUserName();
                 final String meetingName = meetingNameField.getText();
-                selectMeetingFrame.setVisible(false);
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -254,7 +317,8 @@ public class Main {
                                 @Override
                                 public void run() {
                                     try {
-                                        createSelectMeetingFrame(userSession.getMeetingsList(), userSession);
+                                        popFromFrame();
+                                        addToFrame(createSelectMeetingPanel(userSession.getMeetingsList(), userSession));
                                     } catch (UnknownSQLException e) {
                                         e.showMessage();
                                     }
@@ -271,26 +335,142 @@ public class Main {
                 addMetingWorker.run();
             }
         });
+        meetingNameField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                addMetingWorker.run();
+                meetingNameField.setText("");
+            }
+        });
         addMeetingPanel.add(addMeetingButton, BorderLayout.EAST);
         selectMeetingPanel.add(addMeetingPanel, BorderLayout.SOUTH);
 
-        selectMeetingFrame.setSize(500, 300);
-        selectMeetingFrame.setLocation(10, 10);
-        selectMeetingFrame.setVisible(true);
-        return selectMeetingFrame;
+        return selectMeetingPanel;
     }
 
-    public static void main(String[] args) {
+    public static JPanel createMeetingPanel(final Meeting meeting) {
+        JPanel meetingPanel = new JPanel(new BorderLayout());
+
+        //JTextArea description = new JTextArea(meeting.getDescription());
+        //meetingPanel.add(description, BorderLayout.NORTH);
+
+
         try {
-            DatabaseChanger.getInstance().resetDatabase();
-        } catch (IOException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-            DatabaseChanger.die(e);
+            final DatabaseChanger.InstrumentList instrumentList = meeting.getInstrumentList();
+            JPanel instrumentsPanel = new JPanel(new GridLayout(3,1));
+            final JComboBox<String> instruments = new JComboBox<>(instrumentList.descriptions);
+            instrumentsPanel.add(instruments);
+            meetingPanel.add(instrumentsPanel, BorderLayout.CENTER);
+            final JComboBox<String> recipients = new JComboBox<>();
+            JButton applyButton = new JButton("Apply");
+
+            applyButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    final String recipient = recipients.getItemAt(recipients.getSelectedIndex());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                DatabaseChanger.getInstance().applyInstrument(meeting.getUserSession().getUserName(), meeting.getMeetingId(), instrumentList.ids.get(instruments.getSelectedIndex()), new String[]{recipient});
+                            } catch (UnknownSQLException e1) {
+                                e1.showMessage();
+                            }
+                        }
+                    }).start();
+
+                }
+            });
+
+
+            instrumentsPanel.add(recipients);
+            instrumentsPanel.add(applyButton);
+            instruments.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    int index = instruments.getSelectedIndex();
+                    final int id = instrumentList.ids.get(index);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            final Vector<String> recipientList;
+                            try {
+                                recipientList = meeting.getRecipientList(id);
+                                SwingUtilities.invokeLater(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        recipients.removeAllItems();
+                                        for (String s : recipientList) {
+                                            recipients.addItem(s);
+                                        }
+                                    }
+                                });
+                            } catch (UnknownSQLException e1) {
+                                e1.showMessage();
+                            }
+                        }
+                    }).start();
+
+                }
+            });
         } catch (UnknownSQLException e) {
             e.showMessage();
         }
+
+
+
+        /*if (meeting.isOwner()) {
+            JPanel ownerPanel = new JPanel();
+            JButton groupsButton = new JButton("groups");
+            ownerPanel.add(groupsButton);
+            meetingPanel.add(ownerPanel, BorderLayout.SOUTH);
+        }*/
+
+        return meetingPanel;
+    }
+
+    public static void addToFrame(JPanel panel) {
+        if (panelList.isEmpty()) {
+            getMainFrame().setVisible(true);
+        }
+        panelList.add(panel);
+        getContainerPanel().removeAll();
+        getContainerPanel().add(panel);
+        getMainFrame().revalidate();
+        getMainFrame().repaint();
+    }
+
+    public static void popFromFrame() {
+        if (panelList.isEmpty()) {
+            return;
+        }
+        panelList.remove(panelList.size()-1);
+        getContainerPanel().removeAll();
+        if (panelList.isEmpty()) {
+            getMainFrame().setVisible(false);
+            getMainFrame().dispose();
+        } else {
+            getContainerPanel().add(panelList.get(panelList.size() - 1));
+            mainFrame.revalidate();
+            mainFrame.repaint();
+        }
+    }
+
+    public static void main(String[] args) {
+        DatabaseChanger.getInstance().debug = false;
+        if (DatabaseChanger.getInstance().debug) {
+            try {
+                DatabaseChanger.getInstance().resetDatabase();
+            } catch (IOException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+                DatabaseChanger.die(e);
+            } catch (UnknownSQLException e) {
+                e.showMessage();
+            }
+        }
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                createMainFrame();
+                getMainFrame();
+                addToFrame(createMainPanel());
             }
         });
     }

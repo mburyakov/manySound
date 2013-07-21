@@ -7,29 +7,26 @@ import java.sql.SQLException;
 public class Connector {
 
     String connectionURL;
+    static final String DEFAULT_URL = "jdbc:mysql://localhost/test";
+    //static final String DEFAULT_URL = "jdbc:sqlserver://localhost/test";
 
-    public Connector(String url) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    public Connector(String url) throws SQLException {
         connectionURL = url;
         init();
     }
 
-    public Connector() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-        this("jdbc:mysql://localhost/test");
+    public Connector() throws SQLException {
+        this(DEFAULT_URL);
     }
 
     public Connection getConnection(boolean autoCommit) throws SQLException {
-        System.out.println(connectionURL);
+        System.out.println("Conecting to \"" + connectionURL + "\"");
         Connection connection = DriverManager.getConnection(connectionURL);
         connection.setAutoCommit(autoCommit);
         return connection;
     }
 
-    /*public Statement getStatement(boolean autoCommit) throws SQLException {
-        Connection connection = getConnection(autoCommit);
-        return connection.createStatement();
-    }*/
-
-    public static void main(String[] args) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    public static void main(String[] args) throws SQLException {
         Connection conn = null;
         Connector connector = new Connector();
         try {
@@ -49,7 +46,8 @@ public class Connector {
         }
     }
 
-    public static void init() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-        Class.forName("com.mysql.jdbc.Driver").newInstance();
+    public static void init() throws SQLException {
+        //DriverManager.registerDriver(new com.microsoft.sqlserver.jdbc.SQLServerDriver());
+        DriverManager.registerDriver(new com.mysql.jdbc.Driver());
     }
 }
